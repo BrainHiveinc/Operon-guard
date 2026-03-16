@@ -145,13 +145,13 @@ def _render_report(report: TrustReport):
                     console.print(f"     [green]{line}[/]")
 
     # ── Footer ──
-    console.print(f"\n[dim]operon-guard v0.1.0 — https://github.com/BrainHiveinc/Operon-guard[/]\n")
+    console.print(f"\n[dim]operon-guard v0.2.0 — https://github.com/BrainHiveinc/Operon-guard[/]\n")
 
 
 # ── CLI commands ──
 
 @click.group()
-@click.version_option(version="0.1.0", prog_name="operon-guard")
+@click.version_option(version="0.2.0", prog_name="operon-guard")
 def main():
     """Trust verification for AI agents."""
     pass

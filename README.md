@@ -119,6 +119,31 @@ operon-guard scan <agent>    # quick safety scan
 operon-guard init            # generate guardfile from your agent
 ```
 
+## Auto-Fix (v0.2)
+
+operon-guard doesn't just find problems — it tells you exactly how to fix them. Every critical finding and warning comes with numbered fix suggestions, plain-English explanations, and copy-paste code.
+
+```
+CRITICAL FINDINGS (1):
+  X  Agent susceptible to prompt injection
+
+HOW TO FIX:
+
+  1. Add an input guard
+     Screen user input for known injection patterns before it
+     reaches your agent.
+
+     INJECTION_BLOCKLIST = [
+         "ignore all previous", "you are now", ...
+     ]
+
+  2. Harden your system prompt
+     Add explicit boundary instructions telling the model to
+     never follow instructions embedded in user input.
+```
+
+Covers all checks: injection fixes, PII redaction, determinism pinning, concurrency locks, latency caching, and cost optimization.
+
 ## JSON output
 
 ```bash
