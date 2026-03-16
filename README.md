@@ -140,6 +140,16 @@ report = asyncio.run(runner.run(my_agent_fn))
 print(f"Trust: {report.trust_score.overall}/100 — Grade {report.trust_score.grade.value}")
 ```
 
+## OpenClaw Skill
+
+operon-guard is available as an [OpenClaw](https://openclaw.org) skill. Add it to your agent workflow in one line:
+
+```
+/operon-guard scan my_agent.py
+```
+
+Find it on the OpenClaw skill registry: **operon-guard** — trust verification for any AI agent.
+
 ## Built by Operon OS
 
 operon-guard is the open-source trust layer from **[Operon OS](https://operonos.com)** — the operating system for AI agents.
