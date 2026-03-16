@@ -26,6 +26,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from operon_guard.core.spec import GuardSpec, TestCase
 from operon_guard.core.runner import GuardRunner
 from operon_guard.core.scorer import TrustReport, Severity, Grade
+from operon_guard.core.remediation import get_remedies
 from operon_guard.adapters.detect import detect_and_load
 
 console = Console()
@@ -119,6 +120,29 @@ def _render_report(report: TrustReport):
             console.print(f"  [yellow]![/] [{f.check}] {f.message}")
         if len(warnings) > 10:
             console.print(f"  [dim]... and {len(warnings) - 10} more[/]")
+
+    # ── Auto-Fix Suggestions ──
+    all_actionable = critical + warnings
+    seen_titles: set[str] = set()
+    fix_count = 0
+
+    for f in all_actionable:
+        remedies = get_remedies(f)
+        if not remedies:
+            continue
+        for r in remedies:
+            if r.title in seen_titles:
+                continue
+            seen_titles.add(r.title)
+            if fix_count == 0:
+                console.print(f"\n[bold cyan]HOW TO FIX:[/]")
+            fix_count += 1
+            console.print(f"\n  [bold]{fix_count}. {r.title}[/]")
+            console.print(f"     [dim]{r.explanation}[/]")
+            if r.code:
+                console.print()
+                for line in r.code.split("\n"):
+                    console.print(f"     [green]{line}[/]")
 
     # ── Footer ──
     console.print(f"\n[dim]operon-guard v0.1.0 — https://github.com/BrainHiveinc/Operon-guard[/]\n")

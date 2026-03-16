@@ -22,19 +22,19 @@ def _get_adapters() -> list[type[AgentAdapter]]:
 
     # Try importing framework adapters
     try:
-        from operon_guard.adapters.langchain_adapter import RunnableAdapter
+        from operon_guard.adapters.runnable_adapter import RunnableAdapter
         adapters.append(RunnableAdapter)
     except ImportError:
         pass
 
     try:
-        from operon_guard.adapters.crewai_adapter import CrewAdapter
+        from operon_guard.adapters.crew_adapter import CrewAdapter
         adapters.append(CrewAdapter)
     except ImportError:
         pass
 
     try:
-        from operon_guard.adapters.autogen_adapter import ConversableAdapter
+        from operon_guard.adapters.conversable_adapter import ConversableAdapter
         adapters.append(ConversableAdapter)
     except ImportError:
         pass
