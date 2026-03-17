@@ -146,7 +146,7 @@ operon-guard is the open-source trust layer from **[Operon OS](https://operonos.
 
 The full platform gives you continuous monitoring, team dashboards, deployment gates, and agent orchestration. operon-guard is how it starts.
 
-[operonos.com](https://operonos.com) | [GitHub](https://github.com/operonos)
+[operonos.com](https://operonos.com) | [GitHub](https://github.com/BrainHiveinc/Operon-guard)
 
 ## License
 

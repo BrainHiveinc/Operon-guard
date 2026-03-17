@@ -38,10 +38,9 @@ dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.4"]
 operon-guard = "operon_guard.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/operonos/operon-guard"
-Documentation = "https://docs.operonos.com/guard"
-Repository = "https://github.com/operonos/operon-guard"
-Issues = "https://github.com/operonos/operon-guard/issues"
+Homepage = "https://operonos.com"
+Repository = "https://github.com/BrainHiveinc/Operon-guard"
+Issues = "https://github.com/BrainHiveinc/Operon-guard/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/operon_guard"]

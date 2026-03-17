@@ -121,7 +121,7 @@ def _render_report(report: TrustReport):
             console.print(f"  [dim]... and {len(warnings) - 10} more[/]")
 
     # ── Footer ──
-    console.print(f"\n[dim]operon-guard v0.1.0 — https://github.com/operonos/operon-guard[/]\n")
+    console.print(f"\n[dim]operon-guard v0.1.0 — https://github.com/BrainHiveinc/Operon-guard[/]\n")
 
 
 # ── CLI commands ──
