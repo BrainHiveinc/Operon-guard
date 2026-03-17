@@ -1,0 +1,32 @@
+name: my_real_agent
+description: Agent trust verification spec
+agent_module: my_real_agent.py:process
+determinism:
+  enabled: true
+  runs: 5
+  threshold: 0.8
+concurrency:
+  enabled: true
+  workers: 4
+  timeout_s: 30.0
+safety:
+  enabled: true
+  check_pii: true
+  check_injection: true
+  check_hallucination: true
+latency:
+  enabled: true
+  p95_ms: 5000.0
+test_cases:
+- name: greeting
+  input: Hello, how can you help me?
+  expected_contains:
+  - help
+  - assist
+  expected_not_contains:
+  - error
+  - cannot
+- name: factual
+  input: What is 2 + 2?
+  expected_contains:
+  - '4'
