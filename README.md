@@ -1,187 +1,133 @@
 # operon-guard
 
-**Trust verification for AI agents.** Test behavior, catch race conditions, detect safety issues, and get a trust score — before your agents hit production.
+**One command. Find out if your AI agent is safe.**
 
-> 80% of AI projects fail in production (RAND 2024). operon-guard makes sure yours don't.
+```bash
+pip install operon-guard
+operon-guard test my_agent.py
+```
+
+That's it. No config, no setup, no wrapper code. Point it at any Python agent and get a trust score in seconds.
 
 ```
-$ operon-guard test my_agent.py
-
-  OPERON GUARD — Agent Trust Verification
-
-  Agent:  my-agent
-  Status: PASS
-  Score:  87/100  Grade: B
-  Tests:  4/4 passed  Time: 1203ms
+╭──────────────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│  OPERON GUARD — Agent Trust Verification                                     │
+│                                                                              │
+│  Agent:  my-agent                                                            │
+│  Status: PASS                                                                │
+│  Score:  92/100  Grade: A                                                    │
+│  Tests:  4/4 passed  Time: 1203ms                                            │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
 
   ┌─────────────────┬───────┬───────┬────────┬─────────────────────────────┐
   │ Check           │ Score │ Grade │ Status │ Key Finding                 │
   ├─────────────────┼───────┼───────┼────────┼─────────────────────────────┤
-  │ Determinism     │  92   │   A   │  PASS  │                             │
+  │ Determinism     │  100  │   A   │  PASS  │                             │
   │ Concurrency     │  85   │   B   │  PASS  │ Throughput: 12.3 calls/sec  │
   │ Safety          │  80   │   B   │  PASS  │ Agent resisted all injecti… │
   │ Latency         │  90   │   A   │  PASS  │ P95: 340ms within 1000ms   │
   └─────────────────┴───────┴───────┴────────┴─────────────────────────────┘
 ```
 
-## Install
+## Why
+
+80% of AI projects fail in production ([RAND 2024](https://www.rand.org/pubs/research_reports/RRA2680-1.html)). Agents hallucinate, leak PII, break under load, and fall to prompt injection — all in ways that unit tests don't catch.
+
+operon-guard catches them. Before your users do.
+
+## What it finds
+
+**Is your agent consistent?** Runs it multiple times. Same input should give the same answer. If it doesn't — you have a reliability problem.
+
+**Can it be hacked?** Fires real prompt injection payloads at your agent and checks if it complies. Most agents fail this.
+
+**Does it leak data?** Scans outputs for SSNs, credit cards, API keys, emails, phone numbers. One leak in production and you're on the news.
+
+**Is it fast enough?** Measures P50/P95/P99 latency, flags high variance, estimates token cost. Slow agents = angry users = churn.
+
+**Does it survive load?** Runs your agent concurrently, detects race conditions, deadlocks, and output corruption under parallel execution.
+
+## Zero config
+
+operon-guard auto-detects your agent's signature and wraps it automatically. Multi-arg functions, async agents, tuple returns, dict returns — all handled. No wrapper code needed.
 
 ```bash
-pip install operon-guard
+# plain function — just works
+operon-guard test my_agent.py
+
+# specific function — just works
+operon-guard test my_agent.py:generate_response
+
+# multi-arg like fn(system_prompt, user_prompt) — just works
+operon-guard test my_llm.py:run_llm
+
+# async agent — just works
+operon-guard test my_service.py:async_query
 ```
 
-## Quick Start
+## Trust Score
 
-### 1. Write your agent
+Every run produces a trust score out of 100:
 
-Any Python callable works — a function, a class, or any agent framework object:
+| Grade | Score | What it means |
+|-------|-------|---------------|
+| **A** | 90-100 | Ship it |
+| **B** | 75-89 | Probably fine, check the warnings |
+| **C** | 60-74 | Fix the issues before deploying |
+| **D** | 40-59 | Serious problems |
+| **F** | 0-39 | Do not deploy |
 
-```python
-# my_agent.py
-def run(question: str) -> str:
-    return call_my_llm(question)
+CLI exits with code 0 for PASS (A/B) and 1 for FAIL — drop it straight into CI/CD:
+
+```yaml
+# .github/workflows/agent-trust.yml
+- run: pip install operon-guard
+- run: operon-guard test my_agent.py --spec guardfile.yaml
 ```
 
-### 2. Create a guardfile
+## Guardfile (optional)
+
+For deeper testing, create a spec:
 
 ```bash
-operon-guard init --agent my_agent.py:run
+operon-guard init --agent my_agent.py
 ```
 
-This creates `guardfile.yaml`:
+This inspects your agent and generates test cases automatically. Or write your own:
 
 ```yaml
 name: my-agent
-agent_module: my_agent.py:run
-
-determinism:
-  runs: 5
-  threshold: 0.8
 
 safety:
   check_pii: true
   check_injection: true
-  check_hallucination: true
+  banned_phrases: ["as an AI language model"]
 
 test_cases:
   - name: greeting
     input: "Hello, how can you help me?"
-    expected_contains: ["help", "assist"]
-```
-
-### 3. Run verification
-
-```bash
-operon-guard test my_agent.py
-```
-
-## What It Checks
-
-### Determinism (30% of score)
-
-Runs your agent N times per test case and measures output consistency. Catches non-deterministic failures that only show up in production.
-
-- Structural similarity (exact text overlap)
-- Semantic key overlap (same facts, different words)
-- Expected output matching
-- Contains / not-contains assertions
-
-### Concurrency (25% of score)
-
-Race condition and deadlock detection powered by the Operon Race Controller engine.
-
-- Static analysis for shared mutable state
-- Concurrent execution with configurable workers
-- Timeout detection (potential deadlocks)
-- Output consistency under parallel load
-- Throughput measurement
-
-### Safety (30% of score)
-
-Comprehensive output scanning and active penetration testing.
-
-- **PII detection**: SSNs, credit cards, emails, phone numbers, API keys
-- **Prompt injection resistance**: Active testing with injection payloads
-- **Hallucination markers**: False confidence, fabricated citations, invented stats
-- **Banned phrases**: Custom blocklist
-
-### Latency & Cost (15% of score)
-
-Performance profiling and budget enforcement.
-
-- P50/P95/P99 latency measurement
-- Variance detection (unpredictable = unreliable)
-- Token cost estimation
-- Per-case latency limits
-- Budget enforcement
-
-## Trust Score
-
-Scores map to grades:
-
-| Grade | Score   | Meaning              |
-|-------|---------|----------------------|
-| A     | 90-100  | Production-ready     |
-| B     | 75-89   | Mostly safe          |
-| C     | 60-74   | Needs attention      |
-| D     | 40-59   | Significant risks    |
-| F     | 0-39    | Do not deploy        |
-
-The CLI exits with code 0 for PASS (A/B) and 1 for FAIL — plug it straight into your CI/CD.
-
-## Framework Support
-
-operon-guard auto-detects your agent framework. Just point it at your agent file:
-
-```bash
-# Plain function
-operon-guard test my_agent.py:run
-
-# Any framework agent — auto-detected
-operon-guard test my_chain.py:chain
-operon-guard test my_crew.py:crew
-operon-guard test my_agent.py:agent
-```
-
-Built-in adapters for popular agent frameworks. If your agent has `.invoke()`, `.kickoff()`, `.generate_reply()`, or is a plain callable — it just works.
-
-## CI/CD Integration
-
-```yaml
-# .github/workflows/agent-trust.yml
-name: Agent Trust Check
-on: [push, pull_request]
-jobs:
-  trust:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install operon-guard
-      - run: operon-guard test my_agent.py --spec guardfile.yaml
+    expected_contains: ["help"]
 ```
 
 ## Commands
 
 ```bash
-operon-guard test <agent>     # Full trust verification
-operon-guard scan <agent>     # Quick safety scan only
-operon-guard init             # Generate starter guardfile.yaml
+operon-guard test <agent>    # full trust verification
+operon-guard scan <agent>    # quick safety scan
+operon-guard init            # generate guardfile from your agent
 ```
 
-## Options
+## JSON output
 
 ```bash
-operon-guard test my_agent.py \
-  --spec guardfile.yaml  \   # Custom spec file
-  --runs 10              \   # Override determinism runs
-  --workers 8            \   # Override concurrency workers
-  --json                     # JSON output for CI/CD
+operon-guard test my_agent.py --json
 ```
 
-## Programmatic Usage
+Returns structured JSON — pipe it to dashboards, monitoring, or your own tools.
+
+## Use it as a library
 
 ```python
 import asyncio
@@ -190,19 +136,17 @@ from operon_guard import GuardSpec, GuardRunner
 spec = GuardSpec.from_yaml("guardfile.yaml")
 runner = GuardRunner(spec)
 
-async def verify():
-    from my_agent import run
-    report = await runner.run(run)
-    print(f"Score: {report.trust_score.overall}/100")
-    print(f"Grade: {report.trust_score.grade.value}")
-    return report.trust_score.passed
-
-asyncio.run(verify())
+report = asyncio.run(runner.run(my_agent_fn))
+print(f"Trust: {report.trust_score.overall}/100 — Grade {report.trust_score.grade.value}")
 ```
 
 ## Built by Operon OS
 
-operon-guard is the open-source trust layer from [Operon OS](https://operonos.com) — the operating system for AI agents. If you need full agent infrastructure (orchestration, monitoring, governance), check out the full platform.
+operon-guard is the open-source trust layer from **[Operon OS](https://operonos.com)** — the operating system for AI agents.
+
+The full platform gives you continuous monitoring, team dashboards, deployment gates, and agent orchestration. operon-guard is how it starts.
+
+[operonos.com](https://operonos.com) | [GitHub](https://github.com/operonos)
 
 ## License
 
