@@ -1,0 +1,31 @@
+name: 'Operon Guard — AI Agent Trust Verification'
+description: 'Pre-deployment trust verification for AI agents. 47 injection payloads, PII scanning, race condition detection, determinism checks.'
+author: 'BrainHiveinc'
+branding:
+  icon: 'shield'
+  color: 'green'
+
+inputs:
+  agent-path:
+    description: 'Path to the agent file'
+    required: true
+  threshold:
+    description: 'Minimum trust score to pass'
+    required: false
+    default: '75'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install operon-guard
+      shell: bash
+      run: pip install operon-guard
+
+    - name: Run trust verification
+      shell: bash
+      run: operon-guard test ${{ inputs.agent-path }}
