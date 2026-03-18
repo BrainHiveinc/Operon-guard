@@ -1,6 +1,6 @@
 """operon-guard — Trust verification for AI agents."""
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 from operon_guard.core.spec import GuardSpec, TestCase
 from operon_guard.core.runner import GuardRunner

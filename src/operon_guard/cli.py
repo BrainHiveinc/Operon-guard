@@ -151,7 +151,7 @@ def _render_report(report: TrustReport):
 # ── CLI commands ──
 
 @click.group()
-@click.version_option(version="0.2.0", prog_name="operon-guard")
+@click.version_option(version="0.2.1", prog_name="operon-guard")
 def main():
     """Trust verification for AI agents."""
     pass
