@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "operon-guard"
-version = "0.2.2"
+version = "0.2.3"
 description = "Trust verification for AI agents — behavior specs, race-condition detection, safety rails, and trust scoring."
 readme = "README.md"
 license = "Apache-2.0"
