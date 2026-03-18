@@ -55,7 +55,8 @@ class LatencyCheck:
             try:
                 result = agent_fn(tc.input)
                 if asyncio.iscoroutine(result):
-                    result = await result
+                    timeout = max(self.spec.latency_p95_ms / 1000 * 3, 30.0)
+                    result = await asyncio.wait_for(result, timeout=timeout)
                 elapsed_ms = (time.monotonic() - t0) * 1000
                 output_str = str(result)
 
@@ -96,8 +97,11 @@ class LatencyCheck:
 
         # ── Compute stats ──
         p50 = statistics.median(timings)
-        p95 = sorted(timings)[int(len(timings) * 0.95)] if len(timings) >= 2 else max(timings)
-        p99 = sorted(timings)[int(len(timings) * 0.99)] if len(timings) >= 2 else max(timings)
+        sorted_timings = sorted(timings)
+        p95_idx = min(int(len(sorted_timings) * 0.95), len(sorted_timings) - 1)
+        p99_idx = min(int(len(sorted_timings) * 0.99), len(sorted_timings) - 1)
+        p95 = sorted_timings[p95_idx] if len(timings) >= 2 else max(timings)
+        p99 = sorted_timings[p99_idx] if len(timings) >= 2 else max(timings)
         mean = statistics.mean(timings)
         stddev = statistics.stdev(timings) if len(timings) >= 2 else 0.0
 

@@ -84,7 +84,7 @@ class DeterminismCheck:
                 try:
                     result = agent_fn(tc.input)
                     if asyncio.iscoroutine(result):
-                        result = await result
+                        result = await asyncio.wait_for(result, timeout=60.0)
                     outputs.append(str(result))
                 except Exception as e:
                     errors.append(f"Run {run_idx + 1}: {type(e).__name__}: {e}")

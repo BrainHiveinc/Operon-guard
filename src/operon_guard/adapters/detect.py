@@ -39,6 +39,12 @@ def _get_adapters() -> list[type[AgentAdapter]]:
     except ImportError:
         pass
 
+    try:
+        from operon_guard.adapters.openclaw_adapter import OpenClawAdapter
+        adapters.append(OpenClawAdapter)
+    except ImportError:
+        pass
+
     # Generic is always last — catches plain callables
     adapters.append(GenericAdapter)
     return adapters
@@ -93,6 +99,19 @@ def _smart_wrap(fn: Callable) -> Callable[[str], Any]:
     required = [p for p in params if p.default is inspect.Parameter.empty
                 and p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)]
     optional = [p for p in params if p.default is not inspect.Parameter.empty]
+
+    # check for **kwargs-only functions (no positional params at all)
+    has_var_keyword = any(p.kind == p.VAR_KEYWORD for p in params)
+    has_var_positional = any(p.kind == p.VAR_POSITIONAL for p in params)
+    if not required and not optional and has_var_keyword and not has_var_positional:
+        # pass input as keyword arg
+        def _wrap(inp: str) -> str:
+            result = fn(input=inp)
+            if asyncio.iscoroutine(result):
+                raise _AsyncMarker(result)
+            return _extract_text(result)
+        _wrap._is_async = asyncio.iscoroutinefunction(fn)
+        return _wrap
 
     # ── 1 required param: already the ideal shape ──
     if len(required) == 1:
@@ -239,8 +258,40 @@ async def _async_smart_call(wrapped_fn: Callable, inp: str) -> str:
         result = wrapped_fn(inp)
         return result
     except _AsyncMarker as am:
-        result = await am.coro
+        result = await asyncio.wait_for(am.coro, timeout=60.0)
         return _extract_text(result)
+
+
+def _safe_instantiate(cls: type) -> Any:
+    """Try to instantiate a class, handling constructors that require args."""
+    try:
+        return cls()
+    except TypeError:
+        # Constructor requires arguments — try with common defaults
+        sig = inspect.signature(cls.__init__)
+        params = [p for p in sig.parameters.values() if p.name != "self"]
+        required = [p for p in params if p.default is inspect.Parameter.empty
+                    and p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)]
+        if not required:
+            return cls()
+        # Build minimal kwargs with placeholder defaults
+        kwargs = {}
+        for p in required:
+            if p.annotation == str or "name" in p.name.lower():
+                kwargs[p.name] = "test-agent"
+            elif p.annotation in (int, float):
+                kwargs[p.name] = 0
+            elif p.annotation == bool:
+                kwargs[p.name] = False
+            else:
+                kwargs[p.name] = None
+        try:
+            return cls(**kwargs)
+        except Exception as e:
+            raise TypeError(
+                f"Cannot instantiate {cls.__name__}: constructor requires "
+                f"arguments {[p.name for p in required]}. Error: {e}"
+            ) from e
 
 
 def load_agent_from_path(path: str) -> Any:
@@ -262,18 +313,30 @@ def load_agent_from_path(path: str) -> Any:
     if not file_path.exists():
         raise FileNotFoundError(f"Agent file not found: {file_path}")
 
-    # add parent dir to sys.path for imports
+    # path traversal guard — only allow loading from cwd or its subdirectories
+    cwd = Path.cwd().resolve()
+    try:
+        file_path.relative_to(cwd)
+    except ValueError:
+        raise ValueError(
+            f"Security: refusing to load agent outside working directory. "
+            f"File '{file_path}' is not under '{cwd}'."
+        )
+
+    # add parent dir to sys.path for imports (limit to 1 level up max)
     parent = str(file_path.parent)
     if parent not in sys.path:
         sys.path.insert(0, parent)
 
-    # also add grandparent if the file is inside a package (e.g. app/services/foo.py)
-    grandparent = str(file_path.parent.parent)
-    if grandparent not in sys.path:
-        sys.path.insert(0, grandparent)
-    great_grandparent = str(file_path.parent.parent.parent)
-    if great_grandparent not in sys.path:
-        sys.path.insert(0, great_grandparent)
+    # add grandparent only if within cwd boundary
+    grandparent = file_path.parent.parent.resolve()
+    try:
+        grandparent.relative_to(cwd)
+        gp_str = str(grandparent)
+        if gp_str not in sys.path:
+            sys.path.insert(0, gp_str)
+    except ValueError:
+        pass  # grandparent is outside cwd — don't add it
 
     # import the module
     module_name = file_path.stem
@@ -287,7 +350,7 @@ def load_agent_from_path(path: str) -> Any:
         agent = getattr(module, attr_name)
         # if it's a class, instantiate it
         if isinstance(agent, type):
-            agent = agent()
+            agent = _safe_instantiate(agent)
         return agent
 
     # auto-detect: look for common names
@@ -296,7 +359,7 @@ def load_agent_from_path(path: str) -> Any:
         if hasattr(module, name):
             agent = getattr(module, name)
             if isinstance(agent, type):
-                agent = agent()
+                agent = _safe_instantiate(agent)
             return agent
 
     # find first callable that isn't a built-in or import
@@ -319,12 +382,36 @@ def detect_and_load(path: str) -> tuple[Callable, AgentAdapter]:
     """Load agent from path, auto-detect framework, smart-wrap for testing.
 
     This handles ANY agent signature — no wrapper needed from the user.
+    Also handles skill directories (e.g. OpenClaw skills with SKILL.md).
     """
-    raw_agent = load_agent_from_path(path)
+    # Check if the path is a directory — adapters like OpenClaw handle dirs directly
+    resolved = Path(path).resolve()
+    if resolved.is_dir():
+        for adapter_cls in _get_adapters():
+            if adapter_cls is GenericAdapter:
+                continue
+            if adapter_cls.detect(resolved):
+                adapter = adapter_cls()
+                fn = adapter.wrap(resolved)
+                return fn, adapter
+        # No adapter claimed it — try to find a callable inside the dir
+        # Look for common entry points
+        for entry_name in ("main.py", "run.py", "agent.py", "__main__.py"):
+            entry = resolved / entry_name
+            if entry.exists():
+                raw_agent = load_agent_from_path(str(entry))
+                break
+        else:
+            raise FileNotFoundError(
+                f"Directory '{path}' is not a recognized skill format. "
+                "Expected a SKILL.md file or an entry point (main.py, run.py, agent.py)."
+            )
+    else:
+        raw_agent = load_agent_from_path(path)
 
     # first try framework adapters
     for adapter_cls in _get_adapters():
-        if adapter_cls.detect(raw_agent) and not isinstance(adapter_cls, type(GenericAdapter)):
+        if adapter_cls.detect(raw_agent) and adapter_cls is not GenericAdapter:
             adapter = adapter_cls()
             fn = adapter.wrap(raw_agent)
             return fn, adapter

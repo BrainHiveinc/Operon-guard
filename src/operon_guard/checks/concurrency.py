@@ -68,7 +68,9 @@ async def _run_concurrent(
     errors: list[dict[str, Any]] = []
     start = time.monotonic()
 
-    sem = asyncio.Semaphore(workers)
+    # cap workers to prevent resource exhaustion
+    capped_workers = min(workers, 32)
+    sem = asyncio.Semaphore(capped_workers)
 
     async def _worker(idx: int, inp: Any):
         async with sem:

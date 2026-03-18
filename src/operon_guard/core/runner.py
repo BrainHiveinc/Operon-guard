@@ -34,9 +34,14 @@ class GuardRunner:
         _orig_handler = loop.get_exception_handler()
         loop.set_exception_handler(lambda _loop, ctx: None)
 
-        # also suppress noisy logging and runtime warnings from agent internals
+        # suppress noisy logging from agent internals using a filter, not global disable
+        # (global disable would silence logging from other threads)
+        class _SuppressFilter(logging.Filter):
+            def filter(self, record):
+                return record.name.startswith("operon_guard")
+        _suppress = _SuppressFilter()
+        logging.root.addFilter(_suppress)
         _prev_level = logging.root.level
-        logging.disable(logging.WARNING)
         warnings.filterwarnings("ignore", category=RuntimeWarning)
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -81,7 +86,7 @@ class GuardRunner:
             cases_passed = max(0, cases_run - crit)
 
         # restore logging, warnings, and exception handler
-        logging.disable(logging.NOTSET)
+        logging.root.removeFilter(_suppress)
         logging.root.setLevel(_prev_level)
         warnings.resetwarnings()
         loop.set_exception_handler(_orig_handler)
