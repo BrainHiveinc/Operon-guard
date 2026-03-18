@@ -1,0 +1,25 @@
+# operon-guard network policy addition for NemoClaw
+# Add to your blueprint.yaml under components.policy.additions
+# Allows sandbox to install and run operon-guard for pre-launch trust verification
+
+operon_guard:
+  name: operon_guard
+  endpoints:
+    # PyPI — needed for pip install operon-guard
+    - host: pypi.org
+      port: 443
+      protocol: rest
+      enforcement: enforce
+      tls: terminate
+      rules:
+        - allow: { method: GET, path: "/**" }
+    - host: files.pythonhosted.org
+      port: 443
+      protocol: rest
+      enforcement: enforce
+      tls: terminate
+      rules:
+        - allow: { method: GET, path: "/**" }
+  binaries:
+    - { path: /usr/local/bin/operon-guard }
+    - { path: /usr/local/bin/pip }
