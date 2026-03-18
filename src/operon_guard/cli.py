@@ -145,7 +145,8 @@ def _render_report(report: TrustReport):
                     console.print(f"     [green]{line}[/]")
 
     # ── Footer ──
-    console.print(f"\n[dim]operon-guard v0.2.0 — https://github.com/BrainHiveinc/Operon-guard[/]\n")
+    from operon_guard import __version__
+    console.print(f"\n[dim]operon-guard v{__version__} — https://github.com/BrainHiveinc/Operon-guard[/]\n")
 
 
 # ── CLI commands ──
