@@ -33,7 +33,7 @@ That's it. No config, no setup, no wrapper code. Point it at any Python agent an
 
 ## Why
 
-80% of AI projects fail in production ([RAND 2024](https://www.rand.org/pubs/research_reports/RRA2680-1.html)). Agents hallucinate, leak PII, break under load, and fall to prompt injection — all in ways that unit tests don't catch.
+80% of AI projects fail in production ([(https://www.rand.org/pubs/research_reports/RRA2680-1.html)). Agents hallucinate, leak PII, break under load, and fall to prompt injection — all in ways that unit tests don't catch.
 
 operon-guard catches them. Before your users do.
 
